@@ -14,7 +14,7 @@ _A Python toolkit to detect and mitigate bias in text using a BERT-based model. 
 
 ### **📂 Project Structure**
 ```
-bias_detection_toolkit/
+bias-detection-and-mitigation-weatscore/
 │── bias_module/
 │   ├── __init__.py
 │   ├── bias_module.py  # Core logic for bias detection

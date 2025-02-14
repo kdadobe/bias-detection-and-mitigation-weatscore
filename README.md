@@ -53,8 +53,9 @@ pip install gender_bias_detection_weat
 from bias_module.bias_module import BiasFilter
 
 bias_filter = BiasFilter(model_path="bias_filter/model/")
-output = bias_filter.process_statement("[MASK] is the CEO of a company.")
-print(output)
+output_statement, score = bias_filter.process_statement("[MASK] is the CEO of a company.")
+print(output_statement)
+print(score)
 ```
 
 #### **2 As an API**

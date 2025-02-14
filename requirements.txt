@@ -1,0 +1,17 @@
+# File download and handling
+gdown
+
+# Machine Learning & NLP
+torch
+numpy
+pandas
+scikit-learn
+scipy
+gensim
+transformers
+spacy
+nltk
+language-tool-python
+
+# Ensure required NLTK data is downloaded
+nltk[wordnet]

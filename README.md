@@ -1,5 +1,5 @@
 ## **Bias Detection Toolkit**  
-_A Python toolkit to detect and mitigate bias in text using a BERT-based model._
+_A Python toolkit to detect and mitigate bias in text using a BERT-based model. This model calculates the weat score of the statement to identify the gender biasness in the statement.
 
 —
 
@@ -34,14 +34,14 @@ bias_detection_toolkit/
 
 #### **1 Install Locally**
 ```sh
-git clone https://github.com/yourusername/bias-detection.git
-cd bias-detection
+git clone [https://github.com/yourusername/bias-detection.git](https://github.com/kdadobe/bias-detection-and-mitigation-weatscore)
+cd bias-detection-and-mitigation-weatscore
 pip install -e .
 ```
 
 #### **2 Install via PyPI (if published)**
 ```sh
-pip install bias_detection_toolkit
+pip install gender_bias_detection_weat
 ```
 
 —
@@ -50,7 +50,7 @@ pip install bias_detection_toolkit
 
 #### **1 As a Python Module**
 ```python
-from bias_filter.bias_filter import BiasFilter
+from bias_module.bias_module import BiasFilter
 
 bias_filter = BiasFilter(model_path="bias_filter/model/")
 output = bias_filter.process_statement("[MASK] is the CEO of a company.")
@@ -60,15 +60,13 @@ print(output)
 #### **2 As an API**
 Run the FastAPI server:
 ```sh
-uvicorn api.main:app –-reload
+uvicorn api.main:app --reload
 ```
 Then, make API calls:
 
 ##### **POST request**
 ```sh
-curl -X 'POST' 'http://127.0.0.1:8000/unbias' \
-     -H 'Content-Type: application/json' \
-     -d '{"text": "[MASK] is the CEO of a multinational corporation."}'
+curl -X POST "http://127.0.0.1:8000/unbias" -H "Content-Type: application/json" -d "{\"text\": \"I allocated [MASK] to perform the kitchen duty in the evening\"}"
 ```
 
 ##### **GET request**

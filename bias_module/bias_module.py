@@ -122,7 +122,6 @@ class BiasDetector:
         return bias_result
 
 
-
 class BiasFilter:
   PRONOUNS = {
         "he": "they", "she": "they",
@@ -210,9 +209,9 @@ class BiasFilter:
     # Load the pre-trained BERT model and tokenizer
     self.tokenizer = BertTokenizerFast.from_pretrained("kdadobe1/bert-bias-detection-retrained")
     self.bert_model = BertForMaskedLM.from_pretrained("kdadobe1/bert-bias-detection-retrained")
-    self.t5_tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")  # Or a larger t5_model
+    self.t5_tokenizer = AutoTokenizer.from_pretrained("kdadobe1/google_flan_t5_small_retrained")  # Or a larger t5_model
     #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    self.t5_model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+    self.t5_model = AutoModelForSeq2SeqLM.from_pretrained("kdadobe1/google_flan_t5_small_retrained")
     self.tool = language_tool_python.LanguageTool("en-US")
     #self.t5_model.to(self.device)
     self.detector = BiasDetector()
@@ -231,9 +230,10 @@ class BiasFilter:
     completed_statement = masked_statement.replace(self.tokenizer.mask_token, predicted_token)
     return completed_statement, predicted_token
   def is_biased(self, statement):
-      """Uses the dbias classifier to check if the statement is biased."""
-      biased_result = self.detector.compute_bias(statement)
-      return biased_result['label'][0] == 'Biased', biased_result['score'][0]
+    """Uses the dbias classifier to check if the statement is biased."""
+    biased_result = self.detector.compute_bias_weat(statement)
+    print(biased_result)
+    return biased_result['label'][0], biased_result['score'][0]
 
   def rephrase_with_t5(self, sentence):
     """Rephrases the sentence in detoxified, gender-neutral, and proper English format."""
@@ -277,7 +277,8 @@ class BiasFilter:
           if word_lower in BiasFilter.PRONOUNS:
               print("In pronouns")
               new_sentence.append(BiasFilter.PRONOUNS[word_lower])
-          elif token.pos_ == "NOUN" and word_lower in BiasFilter.GENDERED_NOUNS:
+              
+          if token.pos_ == "NOUN" and word_lower in BiasFilter.GENDERED_NOUNS:
               print("In gender nouns")
               new_sentence.append(BiasFilter.GENDERED_NOUNS[word_lower])
           else:
@@ -285,21 +286,22 @@ class BiasFilter:
       neutral_sentence = " ".join(new_sentence)
       neutral_sentence_t5 = self.rephrase_with_t5(neutral_sentence)
       neutral_sentence_lang = self.tool.correct(neutral_sentence_t5)
-      return neutral_sentence_lang
+      return neutral_sentence_t5, neutral_sentence_lang
 
   def process_statement(self, masked_statement):
       """Handles the full workflow: completion, bias detection, and correction."""
       completed_statement, predicted_token = self.complete_statement(masked_statement)
       print(f"Completed Statement: {completed_statement}")
       print(f"Predicted token: {predicted_token}")
-      biased, score = self.is_biased(completed_statement)
-      if biased:
+      biased, initial_bias_score = self.is_biased(completed_statement)
+      if biased == 'Biased':
           print("******The statement is biased*******")
-          print("Bias score ", score)
+          print("Initial Bias score ", initial_bias_score)
           print("******Applying gender-neutral filter.******")
-          gender_neutral_statement = self.rephrase_with_combined(completed_statement)
-          return gender_neutral_statement, score
+          gender_neutral_statement_t5, neutral_sentence_lang  = self.rephrase_with_combined(completed_statement)
+          final_bias, final_bias_score = self.is_biased(gender_neutral_statement_t5)
+          return completed_statement, initial_bias_score, gender_neutral_statement_t5, neutral_sentence_lang, final_bias_score
       else:
           print("The statement is not biased.")
-          return completed_statement, score
+          return completed_statement, initial_bias_score, completed_statement, completed_statement,  initial_bias_score
 

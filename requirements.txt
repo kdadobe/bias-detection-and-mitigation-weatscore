@@ -1,5 +1,9 @@
 # File download and handling
 gdown
+fastapi
+requests
+uvicorn
+gradio
 
 # Machine Learning & NLP
 torch

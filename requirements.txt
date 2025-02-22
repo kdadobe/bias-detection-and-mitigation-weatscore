@@ -17,6 +17,7 @@ spacy
 nltk
 language-tool-python
 sentencepiece
+protobuf
 
 # Ensure required NLTK data is downloaded
 nltk[wordnet]

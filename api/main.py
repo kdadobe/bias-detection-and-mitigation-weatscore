@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Query, Body
 from pydantic import BaseModel
+import gradio as gr
 from bias_module.bias_module import BiasFilter  # Import bias processing logic
+import uvicorn
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -33,3 +35,26 @@ async def process_statement_get(text: str = Query(..., description="Text to be p
 async def root():
     """Root endpoint to check if the API is running"""
     return {"message": "Bias Detection API is running!"}
+
+# --------------- Gradio Integration ----------------
+
+# Define a function for Gradio UI
+def gradio_unbias(text: str):
+    result, score = bias_filter.process_statement(text)
+    return result, score
+
+# Create Gradio interface
+gradio_app = gr.Interface(
+    fn=gradio_unbias, 
+    inputs=gr.Textbox(label="Enter a masked statement with [MASK] for BERT to predict the word"),
+    outputs=[gr.Textbox(label="Final Statement"), gr.Number(label="Bias Score")], 
+    title="Bias Detection",
+    description="Enter a statement to analyze its bias score."
+)
+
+# Mount Gradio inside FastAPI at `/gradio`
+app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
+
+# Run the FastAPI server
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

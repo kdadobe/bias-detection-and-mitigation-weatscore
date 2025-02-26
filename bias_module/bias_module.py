@@ -35,6 +35,7 @@ class BiasDetector:
         self.download_model() # Download the model
         self.extract_model(self.model_file, "GoogleNews-vectors-negative300.bin") # Extract the model
         self.load_model() # Load the model
+        self.sentiment_pipeline = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
 
 
     def download_model(self):
@@ -63,6 +64,11 @@ class BiasDetector:
         """Get the average vector for a list of words."""
         vectors = [self.word_vectors[word] for word in words if word in self.word_vectors]
         return np.mean(vectors, axis=0) if vectors else np.zeros(self.word_vectors.vector_size)
+        
+    def sentiment_analysis(self, sentence):
+      """ Do sentiment analysis of the sentence to determine if the sentence is biased or not along with WEAT score"""
+      result = self.sentiment_pipeline(sentence)
+      return result[0]['label'], result[0]['score']
 
     def get_word_vector(self, word):
       """Retrieve the word embedding vector or return a zero vector if not found."""
@@ -90,19 +96,28 @@ class BiasDetector:
     def compute_bias_weat(self, sentence):
       """Compute gender bias using the WEAT score."""
       words = self.preprocess_sentence(sentence)
-      sentence_vectors = [self.get_word_vector(word) for word in words if word in self.word_vectors]
+      sentiment_result, sentiment_score = self.sentiment_analysis(sentence)
+      print("Sentiment analysis : ", sentiment_result)
+      if sentiment_result == "neutral":
+        score = sentiment_score * 0.1
+        return {'Sentence': [sentence], 'label': ["Non-biased"], 'score': [score], 'sentiment_analysis': [sentiment_result]}
+      elif sentiment_result == "positive":
+        score = sentiment_score * 0.1
+        return {'Sentence': [sentence], 'label': ["Non-Biased"], 'score': [score], 'sentiment_analysis': [sentiment_result]}
+      else:
+        sentence_vectors = [self.get_word_vector(word) for word in words if word in self.word_vectors]
 
-      male_vectors = [self.get_word_vector(word) for word in self.male_words if word in self.word_vectors]
-      female_vectors = [self.get_word_vector(word) for word in self.female_words if word in self.word_vectors]
+        male_vectors = [self.get_word_vector(word) for word in self.male_words if word in self.word_vectors]
+        female_vectors = [self.get_word_vector(word) for word in self.female_words if word in self.word_vectors]
 
-      if not sentence_vectors or not male_vectors or not female_vectors:
+        if not sentence_vectors or not male_vectors or not female_vectors:
           return {'Sentence': [sentence], 'label': ["Insufficient Data"], 'score': [0]}
 
-      weat = self.weat_score(sentence_vectors, male_vectors, female_vectors)
+        weat = self.weat_score(sentence_vectors, male_vectors, female_vectors)
 
-      bias_label = "Biased" if abs(weat) > 0.33 else "Non-biased"  # Threshold for bias detection
+        bias_label = "Biased" if abs(weat) > 0.2 else "Non-biased"  # Threshold for bias detection
 
-      return {'Sentence': [sentence], 'label': [bias_label], 'score': [weat]}
+        return {'Sentence': [sentence], 'label': [bias_label], 'score': [weat], 'sentiment_analysis': [sentiment_result]}
 
     def compute_bias(self, sentence):
         """Compute the gender bias for a sentence."""
@@ -224,16 +239,19 @@ class BiasFilter:
     predictions = outputs.logits
     # Get the predicted token index for the [MASK] token
     mask_token_index = torch.where(inputs.input_ids == self.tokenizer.mask_token_id)[1]
+    print(predictions)
     predicted_token_id = predictions[0, mask_token_index, :].argmax(axis=-1)
     # Replace the [MASK] token with the predicted word
     predicted_token = self.tokenizer.decode(predicted_token_id)
     completed_statement = masked_statement.replace(self.tokenizer.mask_token, predicted_token)
     return completed_statement, predicted_token
+    
+    
   def is_biased(self, statement):
     """Uses the dbias classifier to check if the statement is biased."""
     biased_result = self.detector.compute_bias_weat(statement)
     print(biased_result)
-    return biased_result['label'][0], biased_result['score'][0]
+    return biased_result['label'][0], biased_result['score'][0], biased_result['sentiment_analysis'][0]
 
   def rephrase_with_t5(self, sentence):
     """Rephrases the sentence in detoxified, gender-neutral, and proper English format."""
@@ -293,15 +311,15 @@ class BiasFilter:
       completed_statement, predicted_token = self.complete_statement(masked_statement)
       print(f"Completed Statement: {completed_statement}")
       print(f"Predicted token: {predicted_token}")
-      biased, initial_bias_score = self.is_biased(completed_statement)
+      biased, initial_bias_score, sentiment_analysis = self.is_biased(completed_statement)
       if biased == 'Biased':
           print("******The statement is biased*******")
           print("Initial Bias score ", initial_bias_score)
           print("******Applying gender-neutral filter.******")
           gender_neutral_statement_t5, neutral_sentence_lang  = self.rephrase_with_combined(completed_statement)
-          final_bias, final_bias_score = self.is_biased(gender_neutral_statement_t5)
-          return completed_statement, initial_bias_score, gender_neutral_statement_t5, neutral_sentence_lang, final_bias_score
+          final_bias, final_bias_score, final_sentiment_analysis = self.is_biased(gender_neutral_statement_t5)
+          return completed_statement, initial_bias_score, sentiment_analysis, gender_neutral_statement_t5, neutral_sentence_lang, final_bias_score
       else:
           print("The statement is not biased.")
-          return completed_statement, initial_bias_score, completed_statement, completed_statement,  initial_bias_score
+          return completed_statement, initial_bias_score, sentiment_analysis, completed_statement, completed_statement,  initial_bias_score
 

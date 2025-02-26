@@ -18,6 +18,7 @@ class TextRequest(BaseModel):
 class BiasResponse(BaseModel):
     complete_statement: str
     initial_bias_score: float
+    sentiment_analysis: str
     post_processed_statement: str
     final_statement: str
     final_score: float
@@ -25,14 +26,14 @@ class BiasResponse(BaseModel):
 @app.post("/unbias", response_model=BiasResponse)
 async def process_statement(request: TextRequest = Body(...)):
     """API endpoint to detect bias in text via POST request body"""
-    r1,r2,r3,r4,r5 = bias_filter.process_statement(request.text)
-    return BiasResponse(complete_statement=r1, initial_bias_score=r2, post_processed_statement=r3, final_statement=r4, final_score=r5)
+    r1,r2,rb,r3,r4,r5 = bias_filter.process_statement(request.text)
+    return BiasResponse(complete_statement=r1, initial_bias_score=r2, sentiment_analysis=rb, post_processed_statement=r3, final_statement=r4, final_score=r5)
 
 @app.get("/unbias", response_model=BiasResponse)
 async def process_statement_get(text: str = Query(..., description="Text to be processed")):
     """API endpoint to detect bias in text via GET query parameter"""
     r1,r2,r3,r4,r5 = bias_filter.process_statement(text)
-    return BiasResponse(complete_statement=r1, initial_bias_score=r2, post_processed_statement=r3, final_statement=r4, final_score=r5)
+    return BiasResponse(complete_statement=r1, initial_bias_score=r2, sentiment_analysis=rb, post_processed_statement=r3, final_statement=r4, final_score=r5)
 
 @app.get("/")
 async def root():
@@ -43,8 +44,8 @@ async def root():
 
 # Define a function for Gradio UI
 def gradio_unbias(text: str):
-    r1,r2,r3,r4,r5 = bias_filter.process_statement(text)
-    return r1,r2,r3,r4,r5
+    r1,r2,rb,r3,r4,r5 = bias_filter.process_statement(text)
+    return r1,r2,rb,r3,r4,r5
 
 # Create Gradio interface
 gradio_app = gr.Interface(
@@ -53,6 +54,7 @@ gradio_app = gr.Interface(
     outputs=[
         gr.Textbox(label="Sentence after BERT predicted the word for [MASK]"), 
         gr.Number(label="Initial Bias Score"), 
+        gr.Textbox(label="Sentiment Analysis"),
         gr.Textbox(label="Sentence after post processing filters are applied"), 
         gr.Textbox(label="Final Sentence after Google Flan-t5 processing"), 
         gr.Number(label="Final Bias Score")

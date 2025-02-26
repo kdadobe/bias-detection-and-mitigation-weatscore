@@ -254,26 +254,11 @@ class BiasFilter:
     return biased_result['label'][0], biased_result['score'][0], biased_result['sentiment_analysis'][0]
 
   def rephrase_with_t5(self, sentence):
-    """Rephrases the sentence in detoxified, gender-neutral, and proper English format."""
-
-    # Stronger and clearer prompt
-    input_text = f"Paraphrase this sentence in fluent, detoxified English and correct the punctuation marks: {sentence}"
-
+    """ Uses T5 to further rephrase the sentence into gender-neutral language. """
+    input_text = f"Rephrase this to be gender-neutral: {sentence}"
     input_ids = self.t5_tokenizer(input_text, return_tensors="pt").input_ids
-    #input_ids = input_ids.to(self.device)
-
-    outputs = self.t5_model.generate(
-        input_ids,
-        max_length=100,
-        min_length=10,
-        temperature=0.7,
-        top_p=0.9,
-        num_beams=5
-    )
-
-    # Decode and clean up the output
-    rephrased_text = self.t5_tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
-    print(rephrased_text)
+    outputs = self.t5_model.generate(input_ids)
+    return self.t5_tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     # Remove any unwanted repetition of the input prompt
     if rephrased_text.lower().startswith("paraphrase this"):

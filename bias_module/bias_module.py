@@ -276,20 +276,23 @@ class BiasFilter:
       GENDERED_NOUN_SET = set(BiasFilter.GENDERED_NOUNS.keys())
       for token in doc:
           word_lower = token.text.lower()
-          print("The word is ", word_lower)
           if word_lower in BiasFilter.PRONOUNS:
-              print("In pronouns")
-              new_sentence.append(BiasFilter.PRONOUNS[word_lower])
-              
-          if token.pos_ == "NOUN" and word_lower in BiasFilter.GENDERED_NOUNS:
-              print("In gender nouns")
-              new_sentence.append(BiasFilter.GENDERED_NOUNS[word_lower])
+            new_word = BiasFilter.PRONOUNS[word_lower]   
+          elif word_lower in BiasFilter.GENDERED_NOUNS:
+            new_word = BiasFilter.GENDERED_NOUNS[word_lower]
           else:
-              new_sentence.append(token.text)
+            new_word = token.text
+            
+          if token.i == 0 and token.text[0].isupper():
+            new_word = new_word.capitalize() 
+            
+          new_sentence.append(new_word) 
+      print(new_sentence)
       neutral_sentence = " ".join(new_sentence)
+      neutral_sentence = self.tool.correct(neutral_sentence)
       neutral_sentence_t5 = self.rephrase_with_t5(neutral_sentence)
       neutral_sentence_lang = self.tool.correct(neutral_sentence_t5)
-      return neutral_sentence_t5, neutral_sentence_lang
+      return neutral_sentence_t5, neutral_sentence
 
   def process_statement(self, masked_statement):
       """Handles the full workflow: completion, bias detection, and correction."""
@@ -303,7 +306,7 @@ class BiasFilter:
           print("******Applying gender-neutral filter.******")
           gender_neutral_statement_t5, neutral_sentence_lang  = self.rephrase_with_combined(completed_statement)
           final_bias, final_bias_score, final_sentiment_analysis = self.is_biased(gender_neutral_statement_t5)
-          return completed_statement, initial_bias_score, sentiment_analysis, gender_neutral_statement_t5, neutral_sentence_lang, final_bias_score
+          return completed_statement, initial_bias_score, sentiment_analysis, neutral_sentence_lang, gender_neutral_statement_t5, final_bias_score
       else:
           print("The statement is not biased.")
           return completed_statement, initial_bias_score, sentiment_analysis, completed_statement, completed_statement,  initial_bias_score
